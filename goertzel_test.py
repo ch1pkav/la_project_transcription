@@ -83,6 +83,7 @@ if __name__ == '__main__':
         notes.append(freqs[results.index(max(results, key=lambda x: x[2]))])
 
     # with plt.xkcd():
+    print(notes)
 
     midi = MIDIFile(1)
     quarter_note = 60 / bpm
@@ -91,9 +92,8 @@ if __name__ == '__main__':
     offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
     durations = [x - y for x, y in zip(offsets, onsets)]
     for index, note in enumerate(notes):
-:x
-
-        midi.addNote(0, 0, int(librosa.hz_to_midi(note)),
+        print(librosa.hz_to_midi(note))
+        midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
                      onsets[index], durations[index], 100)
 
     with open("untitled.mid", "wb") as output_file:
