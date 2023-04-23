@@ -62,8 +62,7 @@ def goertzel(samples, sample_rate, *freqs):
 
 
 if __name__ == '__main__':
-
-    frames, sr = librosa.load('untitled.wav', sr=None)
+    frames, sr = librosa.load('untitled2.wav', sr=None)
     bpm = librosa.beat.tempo(y=frames, sr=sr)[0]
     c_major_freqs = [(250, 270), (288, 298), (320, 340),
                      (345, 355), (380, 400), (430, 450), (480, 500)]
@@ -83,7 +82,7 @@ if __name__ == '__main__':
         notes.append(freqs[results.index(max(results, key=lambda x: x[2]))])
 
     # with plt.xkcd():
-    print(notes)
+    # print(notes)
 
     midi = MIDIFile(1)
     quarter_note = 60 / bpm
@@ -92,12 +91,12 @@ if __name__ == '__main__':
     offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
     durations = [x - y for x, y in zip(offsets, onsets)]
     for index, note in enumerate(notes):
-        print(librosa.hz_to_midi(note))
+        # print(librosa.hz_to_midi(note))
         midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
                      onsets[index], durations[index], 100)
 
-    with open("untitled.mid", "wb") as output_file:
+    with open("untitled2.mid", "wb") as output_file:
         midi.writeFile(output_file)
 
-    plt.plot(onsets, notes, linestyle='None', marker='o')
-    plt.show()
+    # plt.plot(onsets, notes, linestyle='None', marker='o')
+    # plt.show()
