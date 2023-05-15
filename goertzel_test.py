@@ -9,60 +9,36 @@ from midiutil import MIDIFile
 
 def goertzel(samples, sample_rate, *freqs):
     """
-    Implementation of the Goertzel algorithm, useful for calculating individual
-    terms of a discrete Fourier transform.
-    `samples` is a windowed one-dimensional signal originally sampled at `sample_rate`.
-    The function returns 2 arrays, one containing the actual frequencies calculated,
-    the second the coefficients `(real part, imag part, power)` for each of those frequencies.
-    For simple spectral analysis, the power is usually enough.
-    Example of usage :
-
-        freqs, results = goertzel(some_samples, 44100, (400, 500), (1000, 1100))
+    Inspired by sebpiq at 
+    https://stackoverflow.com/questions/13499852/scipy-fourier-transform-of-a-few-selected-frequencies
+    and
+    https://gist.github.com/sebpiq/4128537
+    Another useful source: https://netwerkt.wordpress.com/2011/08/25/goertzel-filter/
+    freqs, results = goertzel(some_samples, 44100, (400, 500), (1000, 1100))
     """
     window_size = len(samples)
-    f_step = sample_rate / float(window_size)
-    f_step_normalized = 1.0 / window_size
-
-    # Calculate all the DFT bins we have to compute to include frequencies
-    # in `freqs`.
+    
     bins = set()
+
     for f_range in freqs:
-        f_start, f_end = f_range
-        k_start = int(math.floor(f_start / f_step))
-        k_end = int(math.ceil(f_end / f_step))
-
-        if k_end > window_size - 1:
-            raise ValueError('frequency out of range %s' % k_end)
-        bins = bins.union(range(k_start, k_end))
-
-    # For all the bins, calculate the DFT term
+        bins = bins.union(range(f_range[0], f_range[1]))
+     
     n_range = range(0, window_size)
-    freqs = []
     results = []
     for k in bins:
-
-        # Bin frequency and coefficients for the computation
-        f = k * f_step_normalized
-        w_real = 2.0 * math.cos(2.0 * math.pi * f)
-        w_imag = math.sin(2.0 * math.pi * f)
-
-        # Doing the calculation on the whole sample
-        d1, d2 = 0.0, 0.0
+        f_normalized = k / sample_rate
+        w = 2.0 * math.cos(2.0 * math.pi * f_normalized)
+        s, s_prev, s_preprev = 0.0, 0.0, 0.0
         for n in n_range:
-            y = samples[n] + w_real * d1 - d2
-            d2, d1 = d1, y
+            s = samples[n] + w * s_prev - s_preprev
+            s_preprev, s_prev = s_prev, s
 
-        # Storing results `(real part, imag part, power)`
-        results.append((
-            0.5 * w_real * d1 - d2, w_imag * d1,
-            d2**2 + d1**2 - w_real * d1 * d2)
-        )
-        freqs.append(f * sample_rate)
-    return freqs, results
+        results.append((f_normalized * sample_rate, s_preprev**2 + s_prev**2 - w * s_preprev * s_prev))
+    return results # [(freq_0, power_0), ...]
 
 
 if __name__ == '__main__':
-    frames, sr = librosa.load('untitled2.wav', sr=None)
+    frames, sr = librosa.load('untitled.wav', sr=None)
     bpm = librosa.beat.tempo(y=frames, sr=sr)[0]
     c_major_freqs = [(250, 270), (288, 298), (320, 340),
                      (345, 355), (380, 400), (430, 450), (480, 500)]
@@ -71,18 +47,15 @@ if __name__ == '__main__':
     notes = []
     for index, onset in enumerate(onsets):
         if index == len(onsets) - 1:
-            freqs, results = goertzel(frames[onset:], sr, *c_major_freqs)
+            results = goertzel(frames[onset:], sr, *c_major_freqs)
         else:
-            freqs, results = goertzel(
+            results = goertzel(
                 frames[onset:onsets[index+1]], sr, *c_major_freqs)
-        # print(freqs[results.index(max(results, key=lambda x: x[2]))])
-        # if index == 1 or index == 2:
-            # plt.plot(freqs, [x[2] for x in results])
-            # plt.show()
-        notes.append(freqs[results.index(max(results, key=lambda x: x[2]))])
-
-    # with plt.xkcd():
-    # print(notes)
+        print(max(results, key=lambda x: x[1]))
+        if index == 1 or index == 2:
+            plt.plot(results)
+            plt.show()
+        notes.append(max(results, key=lambda x: x[1])[0])
 
     midi = MIDIFile(1)
     quarter_note = 60 / bpm
@@ -91,11 +64,10 @@ if __name__ == '__main__':
     offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
     durations = [x - y for x, y in zip(offsets, onsets)]
     for index, note in enumerate(notes):
-        # print(librosa.hz_to_midi(note))
         midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
                      onsets[index], durations[index], 100)
 
-    with open("untitled2.mid", "wb") as output_file:
+    with open("untitled.mid", "wb") as output_file:
         midi.writeFile(output_file)
 
     # plt.plot(onsets, notes, linestyle='None', marker='o')
