@@ -33,7 +33,7 @@ def goertzel(samples, sample_rate, *freqs):
             s = samples[n] + w * s_prev - s_preprev
             s_preprev, s_prev = s_prev, s
 
-        results.append((f_normalized * sample_rate, s_preprev**2 + s_prev**2 - w * s_preprev * s_prev))
+        results.append((k, s_preprev**2 + s_prev**2 - w * s_preprev * s_prev))
     return results # [(freq_0, power_0), ...]
 
 
