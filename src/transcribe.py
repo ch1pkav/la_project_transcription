@@ -6,10 +6,10 @@ from midiutil import MIDIFile
 from sys import argv
 
 if __name__ == '__main__':
-    filename = argv[2]
+    filename = argv[1]
     filename_no_ext = ".".join(filename.split('.')[:-1])
 
-    mode = argv[3] if len(argv) > 3 else "fft"
+    mode = argv[2] if len(argv) > 3 else "fft"
 
     frames, sr = librosa.load(filename, sr=None)
     bpm = librosa.feature.tempo(y=frames, sr=sr)[0]
