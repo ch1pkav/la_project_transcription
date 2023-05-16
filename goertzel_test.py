@@ -22,19 +22,22 @@ def goertzel(sample, sample_rate, *freqs):
     N = len(sample)
     bins = set()
     for f_range in freqs:
-        bins = bins.union(range(f_range[0], f_range[1]))
+        f_start, f_end = f_range
+        k_start = int(math.floor(f_start * N / sample_rate))
+        k_end = int(math.ceil(f_end * N / sample_rate))
+        bins = bins.union(range(k_start, k_end))
      
     n_range = range(0, N)
     results = []
     for k in bins:
-        f_normalized = k / sample_rate
+        f_normalized = k / N
         w = 2.0 * math.cos(2.0 * math.pi * f_normalized)
         s, s_prev, s_preprev = 0.0, 0.0, 0.0
         for n in n_range:
             s = sample[n] + w * s_prev - s_preprev
             s_preprev, s_prev = s_prev, s
 
-        results.append((k, s_preprev**2 + s_prev**2 - w * s_preprev * s_prev))
+        results.append((f_normalized * sample_rate, s_preprev**2 + s_prev**2 - w * s_preprev * s_prev))
     return results
 
 def dft(sample, sample_rate, *freqs):
