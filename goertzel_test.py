@@ -46,12 +46,16 @@ def dft(sample, sample_rate, *freqs):
     
     Returns results list containing tuples of the form (frequency, power)
 
+    Inspired by: https://pythonnumericalmethods.berkeley.edu/notebooks/chapter24.02-Discrete-Fourier-Transform.html
+
     >>> results = dft(some_samples, 44100, (400, 500), (1000, 1100))
     '''
     N = len(sample)
     bins = set()
     for f_range in freqs:
-        bins = bins.union(range(f_range[0], f_range[1]))
+        start_bin = int(f_range[0] * N / sample_rate)
+        end_bin = int(f_range[1] * N / sample_rate) + 1
+        bins = bins.union(range(start_bin, end_bin))
 
     results = []
     for k in bins:
@@ -61,27 +65,6 @@ def dft(sample, sample_rate, *freqs):
             result += sample[n] * complex(math.cos(angle), -math.sin(angle))
         results.append((k * sample_rate / N, abs(result)))
     return results
-
-def DFT(x):
-    """
-    Function to calculate the 
-    discrete Fourier Transform 
-    of a 1D real-valued signal x
-    """
-
-    N = len(x)
-    n = np.arange(N)
-    k = n.reshape((N, 1))
-    e = np.exp(-2j * np.pi * k * n / N)
-    
-    X = abs(np.dot(e, x))
-
-    N = len(X)
-    n = np.arange(N)
-    T = N/sr
-    freq = n/T 
-    
-    return freq, X
 
 def FFT(x):
     """
@@ -128,21 +111,19 @@ if __name__ == '__main__':
     frames, sr = librosa.load('untitled.wav', sr=None)
     bpm = librosa.feature.tempo(y=frames, sr=sr)[0]
     c_major_freqs = [(250, 270), (288, 298), (320, 340),
-                     (345, 355), (380, 400), (430, 450), (480, 500)]
+                     (345, 355), (380, 400), (430, 450), (480, 500),  (510, 530)]
     # c_major_freqs += [(x[0] * 2, x[1] * 2) for x in c_major_freqs]
     onsets = librosa.onset.onset_detect(y=frames, sr=sr, units='samples')
     notes = []
     for index, onset in enumerate(onsets):
         if index == len(onsets) - 1:
-            # freqs, X = DFT(frames[onset:])
             # results = goertzel(frames[onset:], sr, *c_major_freqs)
-            # results = dft(frames[onset:], sr, *c_major_freqs)
-            results = fft_wrapper(frames[onset:], sr)
+            results = dft(frames[onset:], sr, *c_major_freqs)
+            # results = fft_wrapper(frames[onset:], sr)
         else:
-            # freqs, X = DFT(frames[onset:onsets[index+1]])
             # results = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            # results = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            results = fft_wrapper(frames[onset:onsets[index+1]], sr)
+            results = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            # results = fft_wrapper(frames[onset:onsets[index+1]], sr)
 
         # print(freqs[np.argmax(X)])
 
@@ -164,6 +145,3 @@ if __name__ == '__main__':
 
     with open("untitled.mid", "wb") as output_file:
         midi.writeFile(output_file)
-
-    # plt.plot(onsets, notes, linestyle='None', marker='o')
-    # plt.show()
