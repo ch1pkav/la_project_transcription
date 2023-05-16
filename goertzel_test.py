@@ -3,10 +3,8 @@ import math
 import librosa
 import numpy as np
 from midiutil import MIDIFile
-
 import time
 
-plt.style.use("seaborn")
 def goertzel(sample, sample_rate, *freqs):
     """
     Inspired by sebpiq at 
@@ -121,37 +119,26 @@ if __name__ == '__main__':
     dft_times = []
     fft_times = []
     for index, onset in enumerate(onsets):
+        sample = []
         if index == len(onsets) - 1:
-
-            goertzel_start = time.time()
-            results_goertzel = goertzel(frames[onset:], sr, *c_major_freqs)
-            goertzel_end = time.time()
-            goertzel_times.append(goertzel_end - goertzel_start)
-            
-            fft_start = time.time()
-            results_fft = fft_wrapper(frames[onset:], sr)
-            fft_end = time.time()
-            fft_times.append(fft_end - fft_start)
-            
-            dft_start = time.time()
-            results_dft = dft(frames[onset:], sr, *c_major_freqs)
-            dft_end = time.time()
-            dft_times.append(dft_end - dft_start)
+            sample = frames[onset:]
         else:
-            goertzel_start = time.time()
-            results_goertzel = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            goertzel_end = time.time()
-            goertzel_times.append(goertzel_end - goertzel_start)
+            sample =frames[onset:onsets[index+1]]
 
-            fft_start = time.time()
-            results_fft = fft_wrapper(frames[onset:onsets[index+1]], sr)
-            fft_end = time.time()
-            fft_times.append(fft_end - fft_start)
-            
-            dft_start = time.time()
-            results_dft = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            dft_end = time.time()
-            dft_times.append(dft_end - dft_start)
+        goertzel_start = time.time()
+        results_goertzel = goertzel(sample, sr, *c_major_freqs)
+        goertzel_end = time.time()
+        goertzel_times.append(goertzel_end - goertzel_start)
+        
+        fft_start = time.time()
+        results_fft = fft_wrapper(sample, sr)
+        fft_end = time.time()
+        fft_times.append(fft_end - fft_start)
+        
+        dft_start = time.time()
+        results_dft = dft(sample, sr, *c_major_freqs)
+        dft_end = time.time()
+        dft_times.append(dft_end - dft_start)
 
 
         print(max(results_goertzel, key=lambda x: x[1]))
