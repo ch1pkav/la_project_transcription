@@ -89,6 +89,8 @@ def FFT(x):
     the 1D Cooley-Tukey FFT, the 
     input should have a length of 
     power of 2. 
+    
+    source: https://pythonnumericalmethods.berkeley.edu/notebooks/chapter24.03-Fast-Fourier-Transform.html
     """
     N = len(x)
     
@@ -106,14 +108,20 @@ def FFT(x):
         return X
 
 def fft_wrapper(sample, sampling_rate):
-    pow2_sample_len = 2 ** math.ceil(math.log2(len(sample)))
-    sample = np.pad(sample, (0, pow2_sample_len), 'constant')
-    print(sample)
+    '''
+    inpired by https://pythonnumericalmethods.berkeley.edu/notebooks/chapter24.03-Fast-Fourier-Transform.html
+
+    >>> results = dft(some_samples, sampling_rate)
+    '''
+    SN = len(sample)
+    pow2_sample_len = 2 ** math.ceil(math.log2(SN))
+    sample = np.pad(sample, (0, pow2_sample_len-SN), 'constant')
     X = FFT(sample)
-    N = len(X)
+    N = len(X) // 2
+    X = abs(X[:N] / N)
     n = np.arange(N)
-    T = N/sampling_rate
-    freq = n/T
+    T = N * 2 / sampling_rate
+    freq = n / T
     return [(freq[i], X[i]) for i in range(N)]
 
 if __name__ == '__main__':
@@ -125,7 +133,6 @@ if __name__ == '__main__':
     onsets = librosa.onset.onset_detect(y=frames, sr=sr, units='samples')
     notes = []
     for index, onset in enumerate(onsets):
-        print(onset)
         if index == len(onsets) - 1:
             # freqs, X = DFT(frames[onset:])
             # results = goertzel(frames[onset:], sr, *c_major_freqs)
@@ -141,22 +148,22 @@ if __name__ == '__main__':
 
         print(max(results, key=lambda x: x[1]))
         # if index == 1 or index == 2:
-        plt.plot([r[0] for r in results], [r[1] for r in results])
-        plt.show()
-        # notes.append(max(results, key=lambda x: x[1])[0])
+        # plt.plot([r[0] for r in results], [r[1] for r in results])
+        # plt.show()
+        notes.append(max(results, key=lambda x: x[1])[0])
 
-    # midi = MIDIFile(1)
-    # quarter_note = 60 / bpm
-    # midi.addTempo(0, 0, bpm)
-    # onsets = [x / quarter_note / sr for x in onsets]
-    # offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
-    # durations = [x - y for x, y in zip(offsets, onsets)]
-    # for index, note in enumerate(notes):
-    #     midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
-    #                  onsets[index], durations[index], 100)
+    midi = MIDIFile(1)
+    quarter_note = 60 / bpm
+    midi.addTempo(0, 0, bpm)
+    onsets = [x / quarter_note / sr for x in onsets]
+    offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
+    durations = [x - y for x, y in zip(offsets, onsets)]
+    for index, note in enumerate(notes):
+        midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
+                     onsets[index], durations[index], 100)
 
-    # with open("untitled.mid", "wb") as output_file:
-    #     midi.writeFile(output_file)
+    with open("untitled.mid", "wb") as output_file:
+        midi.writeFile(output_file)
 
     # plt.plot(onsets, notes, linestyle='None', marker='o')
     # plt.show()
