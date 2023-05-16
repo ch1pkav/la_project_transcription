@@ -1,11 +1,10 @@
-
 import matplotlib.pyplot as plt
 import math
-import wave
 import librosa
 import numpy as np
 from midiutil import MIDIFile
 
+import time
 
 def goertzel(sample, sample_rate, *freqs):
     """
@@ -129,41 +128,75 @@ if __name__ == '__main__':
     bpm = librosa.feature.tempo(y=frames, sr=sr)[0]
     c_major_freqs = [(250, 270), (288, 298), (320, 340),
                      (345, 355), (380, 400), (430, 450), (480, 500)]
-    # c_major_freqs += [(x[0] * 2, x[1] * 2) for x in c_major_freqs]
+    c_major_freqs += [(x[0] * 2, x[1] * 2) for x in c_major_freqs]
     onsets = librosa.onset.onset_detect(y=frames, sr=sr, units='samples')
-    notes = []
+    notes_goertzel = []
+    notes_fft = []
+    goertzel_times = []
+    dft_times = []
+    fft_times = []
     for index, onset in enumerate(onsets):
         if index == len(onsets) - 1:
             # freqs, X = DFT(frames[onset:])
-            # results = goertzel(frames[onset:], sr, *c_major_freqs)
+            goertzel_start = time.time()
+            results_goertzel = goertzel(frames[onset:], sr, *c_major_freqs)
+            goertzel_end = time.time()
+            goertzel_times.append(goertzel_end - goertzel_start)
             # results = dft(frames[onset:], sr, *c_major_freqs)
-            results = fft_wrapper(frames[onset:], sr)
+            
+            fft_start = time.time()
+            results_fft = fft_wrapper(frames[onset:], sr)
+            fft_end = time.time()
+            fft_times.append(fft_end - fft_start)
         else:
             # freqs, X = DFT(frames[onset:onsets[index+1]])
-            # results = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            goertzel_start = time.time()
+            results_goertzel = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            goertzel_end = time.time()
+            goertzel_times.append(goertzel_end - goertzel_start)
             # results = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            results = fft_wrapper(frames[onset:onsets[index+1]], sr)
+            fft_start = time.time()
+            results_fft = fft_wrapper(frames[onset:onsets[index+1]], sr)
+            fft_end = time.time()
+            fft_times.append(fft_end - fft_start)
 
         # print(freqs[np.argmax(X)])
 
-        print(max(results, key=lambda x: x[1]))
+        print(max(results_goertzel, key=lambda x: x[1]))
         # if index == 1 or index == 2:
         # plt.plot([r[0] for r in results], [r[1] for r in results])
         # plt.show()
-        notes.append(max(results, key=lambda x: x[1])[0])
+        notes_goertzel.append(max(results_goertzel, key=lambda x: x[1])[0])
+        notes_fft.append(max(results_fft, key=lambda x: x[1])[0])
 
-    midi = MIDIFile(1)
-    quarter_note = 60 / bpm
-    midi.addTempo(0, 0, bpm)
-    onsets = [x / quarter_note / sr for x in onsets]
-    offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
-    durations = [x - y for x, y in zip(offsets, onsets)]
-    for index, note in enumerate(notes):
-        midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
-                     onsets[index], durations[index], 100)
+    # Create a time plot comparison of FFT and Goertzel
+    plt.plot(range(1, len(goertzel_times) + 1), goertzel_times, label='Goertzel')
+    plt.plot(range(1, len(fft_times) + 1), fft_times, label='FFT')
+    plt.xlabel('Onset number')
+    plt.ylabel('Time (s)')
+    plt.legend()
+    plt.show()
+    
+    # Create a plot of the notes detected
+    plt.plot(range(1, len(notes_goertzel) + 1), notes_goertzel, linestyle='None', marker='o')
+    plt.plot(range(1, len(notes_fft) + 1), notes_fft, linestyle='None', marker='D')
+    plt.xlabel('Onset number')
+    plt.ylabel('Frequency (Hz)')
+    plt.legend(['Goertzel', 'FFT'])
+    plt.show()
+    
+    # midi = MIDIFile(1)
+    # quarter_note = 60 / bpm
+    # midi.addTempo(0, 0, bpm)
+    # onsets = [x / quarter_note / sr for x in onsets]
+    # offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
+    # durations = [x - y for x, y in zip(offsets, onsets)]
+    # for index, note in enumerate(notes):
+    #     midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
+    #                  onsets[index], durations[index], 100)
 
-    with open("untitled.mid", "wb") as output_file:
-        midi.writeFile(output_file)
+    # with open("untitled.mid", "wb") as output_file:
+    #     midi.writeFile(output_file)
 
     # plt.plot(onsets, notes, linestyle='None', marker='o')
     # plt.show()
