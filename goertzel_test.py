@@ -6,6 +6,7 @@ from midiutil import MIDIFile
 
 import time
 
+plt.style.use("seaborn")
 def goertzel(sample, sample_rate, *freqs):
     """
     Inspired by sebpiq at 
@@ -65,7 +66,7 @@ def dft(sample, sample_rate, *freqs):
         results.append((k * sample_rate / N, abs(result)))
     return results
 
-def FFT(x):
+def fft(x):
     """
     A recursive implementation of 
     the 1D Cooley-Tukey FFT, the 
@@ -79,8 +80,8 @@ def FFT(x):
     if N == 1:
         return x
     else:
-        X_even = FFT(x[::2])
-        X_odd = FFT(x[1::2])
+        X_even = fft(x[::2])
+        X_odd = fft(x[1::2])
         factor = \
           np.exp(-2j*np.pi*np.arange(N)/ N)
         
@@ -98,7 +99,7 @@ def fft_wrapper(sample, sampling_rate):
     SN = len(sample)
     pow2_sample_len = 2 ** math.ceil(math.log2(SN))
     sample = np.pad(sample, (0, pow2_sample_len-SN), 'constant')
-    X = FFT(sample)
+    X = fft(sample)
     N = len(X) // 2
     X = abs(X[:N] / N)
     n = np.arange(N)
@@ -109,52 +110,65 @@ def fft_wrapper(sample, sampling_rate):
 if __name__ == '__main__':
     frames, sr = librosa.load('untitled.wav', sr=None)
     bpm = librosa.feature.tempo(y=frames, sr=sr)[0]
-    c_major_freqs = [(250, 270), (288, 298), (320, 340),
-                     (345, 355), (380, 400), (430, 450), (480, 500)]
+    c_major_freqs = [(258, 262), (291, 295), (327, 331),
+                     (347, 351), (390, 394), (438, 442), (491, 495),  (521, 525)]
     c_major_freqs += [(x[0] * 2, x[1] * 2) for x in c_major_freqs]
     onsets = librosa.onset.onset_detect(y=frames, sr=sr, units='samples')
     notes_goertzel = []
     notes_fft = []
+    notes_dft = []
     goertzel_times = []
     dft_times = []
     fft_times = []
     for index, onset in enumerate(onsets):
         if index == len(onsets) - 1:
-            # freqs, X = DFT(frames[onset:])
+
             goertzel_start = time.time()
             results_goertzel = goertzel(frames[onset:], sr, *c_major_freqs)
             goertzel_end = time.time()
             goertzel_times.append(goertzel_end - goertzel_start)
-            # results = dft(frames[onset:], sr, *c_major_freqs)
             
             fft_start = time.time()
             results_fft = fft_wrapper(frames[onset:], sr)
             fft_end = time.time()
             fft_times.append(fft_end - fft_start)
+            
+            dft_start = time.time()
+            results_dft = dft(frames[onset:], sr, *c_major_freqs)
+            dft_end = time.time()
+            dft_times.append(dft_end - dft_start)
         else:
-            # freqs, X = DFT(frames[onset:onsets[index+1]])
             goertzel_start = time.time()
             results_goertzel = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
             goertzel_end = time.time()
             goertzel_times.append(goertzel_end - goertzel_start)
-            # results = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+
             fft_start = time.time()
             results_fft = fft_wrapper(frames[onset:onsets[index+1]], sr)
             fft_end = time.time()
             fft_times.append(fft_end - fft_start)
+            
+            dft_start = time.time()
+            results_dft = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            dft_end = time.time()
+            dft_times.append(dft_end - dft_start)
 
-        # print(freqs[np.argmax(X)])
 
         print(max(results_goertzel, key=lambda x: x[1]))
+        print(max(results_fft, key=lambda x: x[1]))
+        print(max(results_dft, key=lambda x: x[1]))
+        print()
         # if index == 1 or index == 2:
         # plt.plot([r[0] for r in results], [r[1] for r in results])
         # plt.show()
         notes_goertzel.append(max(results_goertzel, key=lambda x: x[1])[0])
         notes_fft.append(max(results_fft, key=lambda x: x[1])[0])
+        notes_dft.append(max(results_dft, key=lambda x: x[1])[0])
 
     # Create a time plot comparison of FFT and Goertzel
     plt.plot(range(1, len(goertzel_times) + 1), goertzel_times, label='Goertzel')
     plt.plot(range(1, len(fft_times) + 1), fft_times, label='FFT')
+    plt.plot(range(1, len(dft_times) + 1), dft_times, label='DFT')
     plt.xlabel('Onset number')
     plt.ylabel('Time (s)')
     plt.legend()
@@ -163,9 +177,10 @@ if __name__ == '__main__':
     # Create a plot of the notes detected
     plt.plot(range(1, len(notes_goertzel) + 1), notes_goertzel, linestyle='None', marker='o')
     plt.plot(range(1, len(notes_fft) + 1), notes_fft, linestyle='None', marker='D')
+    plt.plot(range(1, len(notes_dft) + 1), notes_dft, linestyle='None', marker='*')
     plt.xlabel('Onset number')
     plt.ylabel('Frequency (Hz)')
-    plt.legend(['Goertzel', 'FFT'])
+    plt.legend(['Goertzel', 'FFT', 'DFT'])
     plt.show()
     
     # midi = MIDIFile(1)
