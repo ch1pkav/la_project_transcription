@@ -1,12 +1,11 @@
 import matplotlib.pyplot as plt
 import math
+import cmath
 import librosa
 import numpy as np
 from midiutil import MIDIFile
-
 import time
 
-plt.style.use("seaborn")
 def goertzel(sample, sample_rate, *freqs):
     """
     Inspired by sebpiq at 
@@ -82,29 +81,32 @@ def fft(x):
     else:
         X_even = fft(x[::2])
         X_odd = fft(x[1::2])
-        factor = \
-          np.exp(-2j*np.pi*np.arange(N)/ N)
+        factor = [cmath.exp(-2j * cmath.pi * k / N) for k in range(N)]
         
-        X = np.concatenate(\
-            [X_even+factor[:int(N/2)]*X_odd,
-             X_even+factor[int(N/2):]*X_odd])
+        X = []
+        for k in range(N):
+            if k < N // 2:
+                X.append(X_even[k] + factor[k] * X_odd[k])
+            else:
+                X.append(X_even[k - N // 2] + factor[k] * X_odd[k - N // 2])
+        
         return X
 
 def fft_wrapper(sample, sampling_rate):
     '''
-    inpired by https://pythonnumericalmethods.berkeley.edu/notebooks/chapter24.03-Fast-Fourier-Transform.html
+    Inspired by https://pythonnumericalmethods.berkeley.edu/notebooks/chapter24.03-Fast-Fourier-Transform.html
 
     >>> results = dft(some_samples, sampling_rate)
     '''
     SN = len(sample)
     pow2_sample_len = 2 ** math.ceil(math.log2(SN))
-    sample = np.pad(sample, (0, pow2_sample_len-SN), 'constant')
+    sample.extend([0] * (pow2_sample_len - SN))
     X = fft(sample)
     N = len(X) // 2
-    X = abs(X[:N] / N)
-    n = np.arange(N)
+    X = [abs(value) for value in X[:N]]
+    n = list(range(N))
     T = N * 2 / sampling_rate
-    freq = n / T
+    freq = [value / T for value in n]
     return [(freq[i], X[i]) for i in range(N)]
 
 if __name__ == '__main__':
@@ -121,37 +123,27 @@ if __name__ == '__main__':
     dft_times = []
     fft_times = []
     for index, onset in enumerate(onsets):
+        sample = []
         if index == len(onsets) - 1:
-
-            goertzel_start = time.time()
-            results_goertzel = goertzel(frames[onset:], sr, *c_major_freqs)
-            goertzel_end = time.time()
-            goertzel_times.append(goertzel_end - goertzel_start)
-            
-            fft_start = time.time()
-            results_fft = fft_wrapper(frames[onset:], sr)
-            fft_end = time.time()
-            fft_times.append(fft_end - fft_start)
-            
-            dft_start = time.time()
-            results_dft = dft(frames[onset:], sr, *c_major_freqs)
-            dft_end = time.time()
-            dft_times.append(dft_end - dft_start)
+            sample = frames[onset:]
         else:
-            goertzel_start = time.time()
-            results_goertzel = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            goertzel_end = time.time()
-            goertzel_times.append(goertzel_end - goertzel_start)
+            sample =frames[onset:onsets[index+1]]
+        sample = list(sample)
 
-            fft_start = time.time()
-            results_fft = fft_wrapper(frames[onset:onsets[index+1]], sr)
-            fft_end = time.time()
-            fft_times.append(fft_end - fft_start)
-            
-            dft_start = time.time()
-            results_dft = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            dft_end = time.time()
-            dft_times.append(dft_end - dft_start)
+        goertzel_start = time.time()
+        results_goertzel = goertzel(sample, sr, *c_major_freqs)
+        goertzel_end = time.time()
+        goertzel_times.append(goertzel_end - goertzel_start)
+        
+        fft_start = time.time()
+        results_fft = fft_wrapper(sample, sr)
+        fft_end = time.time()
+        fft_times.append(fft_end - fft_start)
+        
+        dft_start = time.time()
+        results_dft = dft(sample, sr, *c_major_freqs)
+        dft_end = time.time()
+        dft_times.append(dft_end - dft_start)
 
 
         print(max(results_goertzel, key=lambda x: x[1]))
