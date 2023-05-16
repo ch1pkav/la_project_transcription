@@ -57,11 +57,64 @@ def dft(sample, sample_rate, *freqs):
     for k in bins:
         result = complex(0, 0)
         for n in range(N):
-            angle = 2 * math.pi * k * n / N
+            angle = -2 * math.pi * k * n / N
             result += sample[n] * complex(math.cos(angle), -math.sin(angle))
-        results.append((k, abs(result)))
+        results.append((k * sample_rate / N, abs(result)))
     return results
 
+def DFT(x):
+    """
+    Function to calculate the 
+    discrete Fourier Transform 
+    of a 1D real-valued signal x
+    """
+
+    N = len(x)
+    n = np.arange(N)
+    k = n.reshape((N, 1))
+    e = np.exp(-2j * np.pi * k * n / N)
+    
+    X = abs(np.dot(e, x))
+
+    N = len(X)
+    n = np.arange(N)
+    T = N/sr
+    freq = n/T 
+    
+    return freq, X
+
+def FFT(x):
+    """
+    A recursive implementation of 
+    the 1D Cooley-Tukey FFT, the 
+    input should have a length of 
+    power of 2. 
+    """
+    N = len(x)
+    
+    if N == 1:
+        return x
+    else:
+        X_even = FFT(x[::2])
+        X_odd = FFT(x[1::2])
+        factor = \
+          np.exp(-2j*np.pi*np.arange(N)/ N)
+        
+        X = np.concatenate(\
+            [X_even+factor[:int(N/2)]*X_odd,
+             X_even+factor[int(N/2):]*X_odd])
+        return X
+
+def fft_wrapper(sample, sampling_rate):
+    pow2_sample_len = 2 ** math.ceil(math.log2(len(sample)))
+    sample = np.pad(sample, (0, pow2_sample_len), 'constant')
+    print(sample)
+    X = FFT(sample)
+    N = len(X)
+    n = np.arange(N)
+    T = N/sampling_rate
+    freq = n/T
+    return [(freq[i], X[i]) for i in range(N)]
 
 if __name__ == '__main__':
     frames, sr = librosa.load('untitled.wav', sr=None)
@@ -72,30 +125,38 @@ if __name__ == '__main__':
     onsets = librosa.onset.onset_detect(y=frames, sr=sr, units='samples')
     notes = []
     for index, onset in enumerate(onsets):
+        print(onset)
         if index == len(onsets) - 1:
-            results = goertzel(frames[onset:], sr, *c_major_freqs)
+            # freqs, X = DFT(frames[onset:])
+            # results = goertzel(frames[onset:], sr, *c_major_freqs)
             # results = dft(frames[onset:], sr, *c_major_freqs)
+            results = fft_wrapper(frames[onset:], sr)
         else:
-            results = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            # freqs, X = DFT(frames[onset:onsets[index+1]])
+            # results = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
             # results = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            results = fft_wrapper(frames[onset:onsets[index+1]], sr)
+
+        # print(freqs[np.argmax(X)])
+
         print(max(results, key=lambda x: x[1]))
         # if index == 1 or index == 2:
-        #     plt.plot([r[0] for r in results], [r[1] for r in results])
-        #     plt.show()
-        notes.append(max(results, key=lambda x: x[1])[0])
+        plt.plot([r[0] for r in results], [r[1] for r in results])
+        plt.show()
+        # notes.append(max(results, key=lambda x: x[1])[0])
 
-    midi = MIDIFile(1)
-    quarter_note = 60 / bpm
-    midi.addTempo(0, 0, bpm)
-    onsets = [x / quarter_note / sr for x in onsets]
-    offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
-    durations = [x - y for x, y in zip(offsets, onsets)]
-    for index, note in enumerate(notes):
-        midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
-                     onsets[index], durations[index], 100)
+    # midi = MIDIFile(1)
+    # quarter_note = 60 / bpm
+    # midi.addTempo(0, 0, bpm)
+    # onsets = [x / quarter_note / sr for x in onsets]
+    # offsets = [x for x in onsets[1:]] + [onsets[-1] + 1]
+    # durations = [x - y for x, y in zip(offsets, onsets)]
+    # for index, note in enumerate(notes):
+    #     midi.addNote(0, 0, round(librosa.hz_to_midi(note)),
+    #                  onsets[index], durations[index], 100)
 
-    with open("untitled.mid", "wb") as output_file:
-        midi.writeFile(output_file)
+    # with open("untitled.mid", "wb") as output_file:
+    #     midi.writeFile(output_file)
 
     # plt.plot(onsets, notes, linestyle='None', marker='o')
     # plt.show()
