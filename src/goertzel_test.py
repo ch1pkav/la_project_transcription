@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import math
+import cmath
 import librosa
 import numpy as np
 from midiutil import MIDIFile
@@ -113,7 +114,7 @@ def fft_wrapper(sample, sampling_rate):
 
 
 if __name__ == '__main__':
-    frames, sr = librosa.load('untitled.wav', sr=None)
+    frames, sr = librosa.load('data/audio/untitled.wav', sr=None)
     bpm = librosa.feature.tempo(y=frames, sr=sr)[0]
 
     c_major_freqs_base = [(258, 262), (291, 295), (327, 331),
@@ -128,37 +129,27 @@ if __name__ == '__main__':
     dft_times = []
     fft_times = []
     for index, onset in enumerate(onsets):
+        sample = []
         if index == len(onsets) - 1:
-
-            goertzel_start = time.time()
-            results_goertzel = goertzel(frames[onset:], sr, *c_major_freqs)
-            goertzel_end = time.time()
-            goertzel_times.append(goertzel_end - goertzel_start)
-
-            fft_start = time.time()
-            results_fft = fft_wrapper(frames[onset:], sr)
-            fft_end = time.time()
-            fft_times.append(fft_end - fft_start)
-
-            dft_start = time.time()
-            results_dft = dft(frames[onset:], sr, *c_major_freqs)
-            dft_end = time.time()
-            dft_times.append(dft_end - dft_start)
+            sample = frames[onset:]
         else:
-            goertzel_start = time.time()
-            results_goertzel = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            goertzel_end = time.time()
-            goertzel_times.append(goertzel_end - goertzel_start)
+            sample =frames[onset:onsets[index+1]]
+        sample = list(sample)
 
-            fft_start = time.time()
-            results_fft = fft_wrapper(frames[onset:onsets[index+1]], sr)
-            fft_end = time.time()
-            fft_times.append(fft_end - fft_start)
-
-            dft_start = time.time()
-            results_dft = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            dft_end = time.time()
-            dft_times.append(dft_end - dft_start)
+        goertzel_start = time.time()
+        results_goertzel = goertzel(sample, sr, *c_major_freqs)
+        goertzel_end = time.time()
+        goertzel_times.append(goertzel_end - goertzel_start)
+        
+        fft_start = time.time()
+        results_fft = fft_wrapper(sample, sr)
+        fft_end = time.time()
+        fft_times.append(fft_end - fft_start)
+        
+        dft_start = time.time()
+        results_dft = dft(sample, sr, *c_major_freqs)
+        dft_end = time.time()
+        dft_times.append(dft_end - dft_start)
 
 
         print(max(results_goertzel, key=lambda x: x[1]))
@@ -182,8 +173,8 @@ if __name__ == '__main__':
     plt.show()
 
     # Create a plot of the notes detected
-    plt.plot(range(1, len(notes_goertzel) + 1), notes_goertzel, linestyle='None', marker='o')
-    plt.plot(range(1, len(notes_fft) + 1), notes_fft, linestyle='None', marker='D')
+    plt.plot(range(1, len(notes_goertzel) + 1), notes_goertzel, linestyle='None', marker='D')
+    plt.plot(range(1, len(notes_fft) + 1), notes_fft, linestyle='None', marker='o')
     plt.plot(range(1, len(notes_dft) + 1), notes_dft, linestyle='None', marker='*')
     plt.xlabel('Onset number')
     plt.ylabel('Frequency (Hz)')
