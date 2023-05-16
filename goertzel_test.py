@@ -70,15 +70,15 @@ if __name__ == '__main__':
     notes = []
     for index, onset in enumerate(onsets):
         if index == len(onsets) - 1:
-            # results = goertzel(frames[onset:], sr, *c_major_freqs)
-            results = dft(frames[onset:], sr, *c_major_freqs)
+            results = goertzel(frames[onset:], sr, *c_major_freqs)
+            # results = dft(frames[onset:], sr, *c_major_freqs)
         else:
-            # results = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
-            results = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            results = goertzel(frames[onset:onsets[index+1]], sr, *c_major_freqs)
+            # results = dft(frames[onset:onsets[index+1]], sr, *c_major_freqs)
         print(max(results, key=lambda x: x[1]))
-        if index == 1 or index == 2:
-            plt.plot([r[0] for r in results], [r[1] for r in results])
-            plt.show()
+        # if index == 1 or index == 2:
+        #     plt.plot([r[0] for r in results], [r[1] for r in results])
+        #     plt.show()
         notes.append(max(results, key=lambda x: x[1])[0])
 
     midi = MIDIFile(1)
